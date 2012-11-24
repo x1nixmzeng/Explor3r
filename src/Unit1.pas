@@ -8,8 +8,11 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, Menus;
-
+  Dialogs, StdCtrls, ComCtrls, Menus, ExtCtrls
+  {$IFDEF OPENILTEST}
+  , OpenIL, OpenILUT
+  {$ENDIF}
+  ;
 type
   MagicSig = array[0..3] of char;
 
@@ -50,10 +53,15 @@ type
     TreeView1: TTreeView;
     About1: TMenuItem;
     OpenDialog1: TOpenDialog;
+    Panel1: TPanel;
+    Label1: TLabel;
+    Label2: TLabel;
     procedure Load1Click(Sender: TObject);
     procedure About1Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
   private
-
+    imgCount : longword;
+    imgData  : longword;
     procedure imagePass(F:TFileStream;size:longword; node:TTreeNode);
     procedure parseChunk(F:TFileStream; offset:integer; var cheader:ChunkHeader; node:TTreeNode);
     procedure parseBlock(F:TFileStream; offset:integer; node:TTreeNode; name:string);
@@ -110,10 +118,13 @@ begin
 
     listview1.Clear;
     treeview1.Items.Clear;
+    imgCount := 0;
+    imgData  := 0;
     try
       parseBlock( f, 0, treeview1.Items.GetFirstNode, extractfilename( opendialog1.Files[0] ) );
     finally
-//      caption := extractfilename( opendialog1.Files[0] ) + ' - Expor3r';
+      label2.Caption := inttostr(imgCount) + ' ' + inttostr(imgData) + ' (bytes)';
+      caption := opendialog1.Files[0] + ' - Explor3r';
     end;
     
     f.Destroy;
@@ -130,7 +141,14 @@ type
     magic : MagicSig;
     ver   : longword;
     files : longword;
-    un_pad: array[0..31] of byte; // unknown
+    unknown:longword; // new
+    file2 : longword; // new - there are MORE dds headers
+    unknown2:longword;
+    file3 : longword; // actual filecount?
+    unknown3:longword;
+    file4:longword;
+    unknown4:longword;
+    file5:longword;
     offset: longword;
 
     // NEW!
@@ -153,6 +171,7 @@ var
   i,pos: longword;
   pheader : PCMPHeader;
   dheader : PCMPInfo;
+  img:tmemorystream;
 begin
 
 // just search for the inner PCMP chunk
@@ -166,21 +185,26 @@ begin
       pos := (f.position - sizeof( PCMPHeader )) + pheader.dataOff;
       f.Seek( pheader.offset - sizeof( PCMPHeader ), soCurrent );
 
-      treeview1.Items.AddChild(node, inttostr(pheader.files)+' images');
+      treeview1.Items.AddChild(node, inttostr(pheader.file5)+' images');
 
-      for i := 1 to pheader.files do
+      for i := 1 to ( pheader.file5) do
       begin
         f.Read( dheader, sizeof( PCMPInfo ) );
 
         with listview1.Items.Add do
         begin
-          caption := '[*] Image '+inttostr(dheader.width)+'x'+inttostr(dheader.height)+' (CRC32='+inttohex(dheader.crc32,8)+')';
+          checked := true;
+          caption := ' Texture: '+inttostr(dheader.width)+'x'+inttostr(dheader.height)+' (CRC32='+inttohex(dheader.crc32,8)+')';
           subitems.Add(inttostr(pos+dheader.offset));
           subitems.Add(inttostr(dheader.size));
         end;
 
+        inc( imgCount );
+        inc( imgData, dheader.size );
+
       end;
 
+      // success! cleanexit
       exit;
 
     end ;
@@ -212,6 +236,9 @@ begin
         // quickly rename invalid blocks
         if cheader.magic = '' then
           parseBlock( f, offset, node, '<unnamed>' )
+        else
+        if cheader.magic[1] = #0 then
+          parseBlock( f, offset, node, '<'+inttostr(byte(cheader.magic[0]))+'>' )
         else
           parseBlock( f, offset, node, cheader.magic );
 
@@ -259,6 +286,20 @@ begin
 
   node := treeview1.Items.AddChild( node, name );  
 
+  if name = CHUNK_MISSIONEDITOR then
+  begin
+  {
+    2 expected chunks:
+      PIND and PINS
+    PINS contains:
+      null-terminated string table
+    PIND contains:
+      OFFSET : longword  // PINS string offset
+      INDEX  : word      // Just the string index (0-x)
+      unknown: word      // Flags or string type      
+  }
+  end;
+
   for i := 1 to header.chunks do
   begin
     f.read( cheader, sizeof( ChunkHeader ) );
@@ -269,7 +310,7 @@ begin
     with listview1.Items.Add do
     begin
      // caption := cheader.magic;
-      caption := 'Found chunk (' + ReadComment( f ) + ')';
+      caption := 'Chunk: ' + ReadComment( f );
       subitems.add( inttostr( offset + cheader.offset ) );
       subitems.add( inttostr( cheader.size ) );
     end;
@@ -287,10 +328,21 @@ begin
   loadFile();
 end;
 
-
 procedure TForm1.About1Click(Sender: TObject);
 begin
   showmessage('Load chunked data from Driv3r (PC)');
 end;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+{$IFDEF OPENILTEST}
+  OpenIL.ilInit;
+  OpenILUT.ilutInit;
+{$ENDIF}
+end;
+
+   // Image1.Picture.Bitmap.Handle :=
+     //   OpenILUT.ilutWinLoadImage('explor3_tmp.dds', image1.Canvas.Handle);
+
 
 end.
