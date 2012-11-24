@@ -11,15 +11,17 @@ uses
   Dialogs, StdCtrls, ComCtrls, Menus;
 
 type
+  MagicSig = array[0..3] of char;
+
   BlockHeader = packed record
-    magic : array[0..3] of char;
+    magic : MagicSig;
     size  : longword;
     chunks: longword;
     ver   : longword;
   end;
 
   ChunkHeader = packed record
-    magic : array[0..3] of char;
+    magic : MagicSig;
     offset: longword;
     flags : longword;
     size  : longword;
@@ -125,7 +127,7 @@ const
   CHUNK_PCMP = 'PCMP';
 type
   PCMPHeader = packed record
-    magic : array[0..3] of char;
+    magic : MagicSig;
     ver   : longword;
     files : longword;
     un_pad: array[0..31] of byte; // unknown
@@ -189,46 +191,44 @@ begin
   
 end;
 
+{
+  generic chunk handler
+}
 procedure TForm1.parseChunk(F:TFileStream; offset:integer; var cheader:ChunkHeader; node:TTreeNode);
+var
+  magic : MagicSig;
+  notBlock : boolean;
 begin
 
-// check first for recursive magic values
-  if ( cheader.magic = CHUNK_MISSINGMAGIC )
-   or( cheader.magic = CHUNK_MENUPACKAGE )
-   or ( cheader.magic = 'GESR' ) //  CarLuver69
-   or ( cheader.magic = 'GERD' ) //  CarLuver69
-   or ( cheader.magic = 'GEID' ) //  CarLuver69
-   or ( cheader.magic = 'IRCT' ) //  CarLuver69
-   or ( cheader.magic = 'GEPD' ) //  CarLuver69
-   or ( cheader.magic = 'PINF' ) //  CarLuver69
-   or ( cheader.magic = 'GEGL' ) //  CarLuver69
-   or ( cheader.magic = 'PCSL' ) //  CarLuver69
+    notBlock := true;
 
-  then
+    if cheader.size > (sizeof( ChunkHeader ) + sizeof(MagicSig)) then
+    begin
+      f.Read(magic, sizeof(MagicSig));
+      f.Seek(-sizeof(MagicSig), soCurrent);
+
+      if magic = BLOCKMAGIC then
+      begin
+        // quickly rename invalid blocks
+        if cheader.magic = '' then
+          parseBlock( f, offset, node, '<unnamed>' )
+        else
+          parseBlock( f, offset, node, cheader.magic );
+
+        notBlock := false;  
+      end;
+            
+    end;
+
+
+  if notBlock then
   begin
-
-  // quickly rename invalid blocks
-    if cheader.magic = '' then
-      parseBlock( f, offset, node, '<unnamed>' )
-    else
-      parseBlock( f, offset, node, cheader.magic );
-
-  end
-  else
-  begin
+    // attempt an image pass
     node := treeview1.Items.AddChild(node, cheader.magic);
 
-    // some headers may contain textures
-
-    if ( cheader.magic = CHUNK_MODELPACKAGE )
-    or ( cheader.magic = 'GESR' )
-    then
-    begin
-      imagePass(f, cheader.size, node);     
-    end
-
-
+    imagePass(f, cheader.size, node);
   end;
+
 
 end;
 
