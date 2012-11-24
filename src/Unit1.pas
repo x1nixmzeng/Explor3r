@@ -6,6 +6,8 @@ unit Unit1;
 
 interface
 
+{$DEFINE OPENILTEST}
+
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, Menus, ExtCtrls
@@ -17,17 +19,17 @@ type
   MagicSig = array[0..3] of char;
 
   BlockHeader = packed record
-    magic : MagicSig;
-    size  : longword;
-    chunks: longword;
-    ver   : longword;
+    magic  : MagicSig;
+    unknown: longword; // $00000003 (file version?)
+    chunks : longword;
+    ver    : longword;
   end;
 
   ChunkHeader = packed record
-    magic : MagicSig;
-    offset: longword;
-    flags : longword;
-    size  : longword;
+    magic  : MagicSig;
+    offset : longword;
+    un1    : longword; // maybe chunk flags
+    size   : longword;
   end;
 
 const
@@ -54,14 +56,21 @@ type
     About1: TMenuItem;
     OpenDialog1: TOpenDialog;
     Panel1: TPanel;
+    Panel2: TPanel;
+    Image1: TImage;
+    GroupBox1: TGroupBox;
     Label1: TLabel;
     Label2: TLabel;
+    Button1: TButton;
+    PaintBox1: TPaintBox;
     procedure Load1Click(Sender: TObject);
     procedure About1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   private
     imgCount : longword;
     imgData  : longword;
+    lastFile : string;
     procedure imagePass(F:TFileStream;size:longword; node:TTreeNode);
     procedure parseChunk(F:TFileStream; offset:integer; var cheader:ChunkHeader; node:TTreeNode);
     procedure parseBlock(F:TFileStream; offset:integer; node:TTreeNode; name:string);
@@ -84,7 +93,7 @@ implementation
 }
 function ReadComment( f: TFileStream ): String;
 var
-  began, val, i: longword; b:byte;
+  i: longword; b:byte;
 const
   mem_fill : array[0..3] of byte = ( $A1,$15,$C0,$DE );
 begin
@@ -120,9 +129,11 @@ begin
     treeview1.Items.Clear;
     imgCount := 0;
     imgData  := 0;
+    lastFile := '';
     try
       parseBlock( f, 0, treeview1.Items.GetFirstNode, extractfilename( opendialog1.Files[0] ) );
     finally
+      lastFile := opendialog1.files[0];
       label2.Caption := inttostr(imgCount) + ' ' + inttostr(imgData) + ' (bytes)';
       caption := opendialog1.Files[0] + ' - Explor3r';
     end;
@@ -133,45 +144,46 @@ begin
 
 end;
 
+{
+  filecount 
+}
 procedure TForm1.imagePass(F:TFileStream;size:longword; node:TTreeNode);
 const
   CHUNK_PCMP = 'PCMP';
 type
   PCMPHeader = packed record
-    magic : MagicSig;
-    ver   : longword;
-    files : longword;
-    unknown:longword; // new
-    file2 : longword; // new - there are MORE dds headers
-    unknown2:longword;
-    file3 : longword; // actual filecount?
-    unknown3:longword;
-    file4:longword;
-    unknown4:longword;
-    file5:longword;
-    offset: longword;
-
-    // NEW!
+    magic  : MagicSig;
+    un1,               // not game version ($3)
+    un2,               //
+    mySize : longword; // OFFSET 56 (to end of PCMPHeader)
+    un3,               //
+    un4,               // OFFSET mySize + (un1*24)
+    un5,               //
+    un6,               // OFFSET un4 + (un3*8)
+    un7,               //
+    un8,               //
+    files  : longword; // number we use for # of files
+    offset : longword; //
     dataOff: longword; // pointer (from PCMP header) to start of data
+    un9    : longword;
   end;
 
   // 32 bytes
   PCMPInfo = packed record
-    un_pad: longword; // value of '01010101'
-    crc32 : longword; // checksum of dds data
+    un1   : longword; // sometimes = $01010101
+    un2   : longword; // crc32 of texture data or 0
     offset: longword;
     size  : longword;
-//    un_pad2: array[0..15] of byte; // texture size and other stuff maybe?
-    ver   : longword; // dxt[ver] ex 3 is DXT3?
+    un3   : longword; // not dxt version
     width,
-    height: word; // assumed
-    unpad2: array[0..7] of byte;
+    height: word;
+    unpad : array[0..7] of byte;
   end;
 var
+  loop:boolean;
   i,pos: longword;
   pheader : PCMPHeader;
   dheader : PCMPInfo;
-  img:tmemorystream;
 begin
 
 // just search for the inner PCMP chunk
@@ -185,16 +197,25 @@ begin
       pos := (f.position - sizeof( PCMPHeader )) + pheader.dataOff;
       f.Seek( pheader.offset - sizeof( PCMPHeader ), soCurrent );
 
-      treeview1.Items.AddChild(node, inttostr(pheader.file5)+' images');
+      treeview1.Items.AddChild(node, inttostr(pheader.files)+' images');
 
-      for i := 1 to ( pheader.file5) do
+      //for i := 1 to ( pheader.file5) do
+      i:=0; loop:= true;
+      while loop do
       begin
         f.Read( dheader, sizeof( PCMPInfo ) );
+        if dheader.un1 = 0{<> $01010101 } then
+        begin
+          loop:= false;
+          continue;
+        end;
+        inc(i);
 
         with listview1.Items.Add do
         begin
           checked := true;
-          caption := ' Texture: '+inttostr(dheader.width)+'x'+inttostr(dheader.height)+' (CRC32='+inttohex(dheader.crc32,8)+')';
+          caption := ' Texture: '+inttostr(dheader.width)+' x '+inttostr(dheader.height);
+          //+' (CRC32='+inttohex(dheader.crc32,8)+')';
           subitems.Add(inttostr(pos+dheader.offset));
           subitems.Add(inttostr(dheader.size));
         end;
@@ -203,6 +224,11 @@ begin
         inc( imgData, dheader.size );
 
       end;
+
+      // 
+      if  i <> pheader.files then
+        showmessage('Warning: Unexpected filecount'#13#10+
+        Format('(expected %d got %d)',[pheader.files,i])    );
 
       // success! cleanexit
       exit;
@@ -271,10 +297,6 @@ var
   pos : longword;
   i: longword;
 
-  test:longword;
-  j,w: word;
-
-  li:TListItem;
 begin
   f.Read( header, sizeof( BlockHeader ) );
 
@@ -313,6 +335,10 @@ begin
       caption := 'Chunk: ' + ReadComment( f );
       subitems.add( inttostr( offset + cheader.offset ) );
       subitems.add( inttostr( cheader.size ) );
+
+      // new: end of chunk
+      // bugfix: actually this is the description pointer! +4096
+      subitems.Add( inttostr( offset + cheader.offset + cheader.size +4096 ) );
     end;
 
     f.Seek( offset + cheader.offset, soBeginning );
@@ -341,8 +367,45 @@ begin
 {$ENDIF}
 end;
 
-   // Image1.Picture.Bitmap.Handle :=
-     //   OpenILUT.ilutWinLoadImage('explor3_tmp.dds', image1.Canvas.Handle);
+procedure TForm1.Button1Click(Sender: TObject);
+var
+  off,size:longword;
+  fs:tfilestream;
+  ms:tmemorystream;
+begin
+  if ( listview1.SelCount > 0 ) and ( lastFile <> '' ) then
+  begin
+    with listview1.Selected do
+    begin
+      if checked then
+      begin
+        off := strtoint( listview1.Items.Item[index].SubItems[0] );
+        size:= strtoint( listview1.Items.Item[index].SubItems[1] );
 
+        // now read the file to get the dds data ?
+        fs:=tfilestream.Create(lastFile,fmOpenRead);
+        fs.Seek(off,soBeginning);
+        ms:=tmemorystream.create;
+        ms.CopyFrom(fs,size);
+        fs.Destroy;
+        setcurrentdirectory(pchar(Extractfiledir(paramstr(0))));
+        ms.SaveToFile('e3tmp.dds');
+        ms.Free;
+
+        if image1.Picture.Bitmap.Handle <> 0 then
+          image1.Picture.Bitmap.FreeImage;
+
+        Image1.Picture.Bitmap.Handle :=
+
+          OpenILUT.ilutWinLoadImage('e3tmp.dds', paintbox1.Canvas.Handle);
+
+        // to save after loading an image, you can do this:
+//        openil.ilSaveImage('test.png');
+    
+      end;
+    end;
+
+  end;
+end;
 
 end.

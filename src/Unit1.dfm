@@ -2,7 +2,7 @@ object Form1: TForm1
   Left = 255
   Top = 224
   Width = 865
-  Height = 546
+  Height = 573
   HorzScrollBar.Visible = False
   VertScrollBar.Visible = False
   Caption = 'Explor3r'
@@ -17,47 +17,20 @@ object Form1: TForm1
   OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
-  object TreeView1: TTreeView
-    Left = 0
-    Top = 0
-    Width = 249
-    Height = 500
-    Align = alLeft
-    AutoExpand = True
-    HideSelection = False
-    Indent = 19
-    ReadOnly = True
-    RowSelect = True
-    TabOrder = 0
-  end
   object Panel1: TPanel
-    Left = 249
+    Left = 273
     Top = 0
-    Width = 608
-    Height = 500
+    Width = 584
+    Height = 527
     Align = alClient
     BevelOuter = bvNone
-    TabOrder = 1
-    object Label1: TLabel
-      Left = 8
-      Top = 480
-      Width = 37
-      Height = 13
-      Caption = 'Images:'
-    end
-    object Label2: TLabel
-      Left = 56
-      Top = 480
-      Width = 32
-      Height = 13
-      Caption = 'Label2'
-    end
+    TabOrder = 0
     object ListView1: TListView
       Left = 0
       Top = 0
-      Width = 608
-      Height = 465
-      Align = alTop
+      Width = 584
+      Height = 472
+      Align = alClient
       Checkboxes = True
       Columns = <
         item
@@ -71,12 +44,86 @@ object Form1: TForm1
         item
           Caption = 'Size'
           Width = 80
+        end
+        item
+          Caption = 'Ends'
+          Width = 80
         end>
       GridLines = True
       ReadOnly = True
       RowSelect = True
       TabOrder = 0
       ViewStyle = vsReport
+    end
+    object GroupBox1: TGroupBox
+      Left = 0
+      Top = 472
+      Width = 584
+      Height = 55
+      Align = alBottom
+      Caption = 'Properties'
+      TabOrder = 1
+      DesignSize = (
+        584
+        55)
+      object Label1: TLabel
+        Left = 16
+        Top = 24
+        Width = 34
+        Height = 13
+        Caption = 'Images'
+      end
+      object Label2: TLabel
+        Left = 80
+        Top = 24
+        Width = 6
+        Height = 13
+        Caption = '0'
+      end
+      object Button1: TButton
+        Left = 256
+        Top = 16
+        Width = 305
+        Height = 25
+        Anchors = [akLeft, akRight]
+        Caption = 'Preview'
+        TabOrder = 0
+        OnClick = Button1Click
+      end
+    end
+  end
+  object Panel2: TPanel
+    Left = 0
+    Top = 0
+    Width = 273
+    Height = 527
+    Align = alLeft
+    BevelOuter = bvNone
+    TabOrder = 1
+    object Image1: TImage
+      Left = 8
+      Top = 264
+      Width = 256
+      Height = 256
+      Center = True
+    end
+    object PaintBox1: TPaintBox
+      Left = 232
+      Top = 208
+      Width = 25
+      Height = 41
+    end
+    object TreeView1: TTreeView
+      Left = 0
+      Top = 0
+      Width = 273
+      Height = 257
+      Align = alTop
+      AutoExpand = True
+      Indent = 19
+      ReadOnly = True
+      RowSelect = True
+      TabOrder = 0
     end
   end
   object MainMenu1: TMainMenu

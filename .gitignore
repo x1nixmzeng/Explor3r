@@ -13,9 +13,11 @@
 
 # Other
 
-ILU.dll
-ILUT.dll
-DevIL.dll
-openil.pas
-openilu.pas
-openilut.pas
+e3tmp.dds
+
+#ILU.dll
+#ILUT.dll
+#DevIL.dll
+#openil.pas
+#openilu.pas
+#openilut.pas

@@ -8,7 +8,13 @@ Resource explorer for the **Driv3r** video game inspired by [this thread](http:/
 
 This is a very incomplete project with almost no functionality of value. Research is based on the official demo.
 
-## Latest
+## Download
 
-![Screenshot](http://i.imgur.com/0CsLH.png)
+Download the current state of the project [here](https://github.com/x1nixmzeng/Explor3r/archive/master.zip).
+
+**NOTE** You will need to extract the whole archive as the DevIL libraries are now required.
+
+## Screenshot
+
+![Screenshot](http://i.imgur.com/LTazn.png)
 
