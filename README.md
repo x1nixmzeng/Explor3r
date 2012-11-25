@@ -6,7 +6,7 @@ Resource explorer for the **Driv3r** video game inspired by [this thread](http:/
 
 ## Experimental
 
-This is a very incomplete project with almost no functionality of value. Research is based on the official demo.
+This project is still in the early stage of development and makes some pretty bold assumptions on the data format. Also, my research contribution is limited to the official demo.
 
 ## Download
 

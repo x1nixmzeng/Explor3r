@@ -13,7 +13,7 @@
 
 # Other
 
-e3tmp.dds
+*.dds
 
 #ILU.dll
 #ILUT.dll

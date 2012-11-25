@@ -61,12 +61,32 @@ type
     GroupBox1: TGroupBox;
     Label1: TLabel;
     Label2: TLabel;
-    Button1: TButton;
     PaintBox1: TPaintBox;
+    Button1: TButton;
+    Resources1: TMenuItem;
+    SaveAll1: TMenuItem;
+    N1: TMenuItem;
+    SelectAll1: TMenuItem;
+    SelectNone1: TMenuItem;
+    SelectInverse1: TMenuItem;
+    SelectOnly1: TMenuItem;
+    Chunks1: TMenuItem;
+    extures1: TMenuItem;
+    Include1: TMenuItem;
+    Chunks2: TMenuItem;
+    extures2: TMenuItem;
     procedure Load1Click(Sender: TObject);
     procedure About1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure Button1Click(Sender: TObject);
+    procedure SaveAll1Click(Sender: TObject);
+    procedure SelectAll1Click(Sender: TObject);
+    procedure SelectNone1Click(Sender: TObject);
+    procedure SelectInverse1Click(Sender: TObject);
+    procedure Chunks1Click(Sender: TObject);
+    procedure extures1Click(Sender: TObject);
+    procedure Chunks2Click(Sender: TObject);
+    procedure extures2Click(Sender: TObject);
   private
     imgCount : longword;
     imgData  : longword;
@@ -134,7 +154,7 @@ begin
       parseBlock( f, 0, treeview1.Items.GetFirstNode, extractfilename( opendialog1.Files[0] ) );
     finally
       lastFile := opendialog1.files[0];
-      label2.Caption := inttostr(imgCount) + ' ' + inttostr(imgData) + ' (bytes)';
+      label2.Caption := inttostr(imgCount);
       caption := opendialog1.Files[0] + ' - Explor3r';
     end;
     
@@ -389,7 +409,7 @@ begin
         ms.CopyFrom(fs,size);
         fs.Destroy;
         setcurrentdirectory(pchar(Extractfiledir(paramstr(0))));
-        ms.SaveToFile('e3tmp.dds');
+        ms.SaveToFile('ddscache');
         ms.Free;
 
         if image1.Picture.Bitmap.Handle <> 0 then
@@ -397,7 +417,9 @@ begin
 
         Image1.Picture.Bitmap.Handle :=
 
-          OpenILUT.ilutWinLoadImage('e3tmp.dds', paintbox1.Canvas.Handle);
+          OpenILUT.ilutWinLoadImage('ddscache', paintbox1.Canvas.Handle);
+
+          deletefile('ddscache');
 
         // to save after loading an image, you can do this:
 //        openil.ilSaveImage('test.png');
@@ -406,6 +428,121 @@ begin
     end;
 
   end;
+end;
+
+procedure TForm1.SaveAll1Click(Sender: TObject);
+var
+  fs:tfilestream;
+  i,e: longword;
+  str: string;
+  off,size:longword;
+  ms:tmemorystream;
+begin
+  e:=0;
+  if ( listview1.Items.Count > 0 ) and ( lastFile <> '' ) then
+  begin
+    // open file once
+    fs:=tfilestream.Create(lastFile,fmOpenRead);
+
+    setcurrentdirectory(pchar(Extractfiledir(paramstr(0))));
+    createdir( 'extracted' );    
+       
+
+    for i:=1 to listview1.Items.Count do
+    begin
+      with listview1.Items.Item[i-1] do
+      if checked then
+      begin
+        off := strtoint( SubItems[0] );
+        size:= strtoint( SubItems[1] );
+
+        fs.Seek(off,soBeginning);
+        ms:=tmemorystream.create;
+        ms.CopyFrom(fs,size);
+
+        if strpos( pchar(caption), ('Texture') ) <> nil then
+        begin
+          ms.SaveToFile('ddscache');
+          ms.Free;
+
+          if image1.Picture.Bitmap.Handle <> 0 then
+            image1.Picture.Bitmap.FreeImage;
+
+          openil.ilLoadImage('ddscache');
+//        OpenILUT.ilutWinLoadImage('e3tmp.dds', paintbox1.Canvas.Handle);
+
+          openil.ilSaveImage(pchar('extracted/'+inttohex(off,8)+'.png'));
+          deletefile('ddscache');
+       end
+       else
+       begin
+         ms.SaveToFile('extracted/chunk_'+inttohex(off,8)+'.dat');
+         ms.Free;
+       end;
+
+       inc(e);
+    
+      end;
+    end;
+
+    fs.Destroy;
+
+  end;
+
+  showmessage(format('Extracted %d files',[e]));
+end;
+
+procedure TForm1.SelectAll1Click(Sender: TObject);
+var i : longword;
+begin
+  for i:=1 to listview1.Items.Count do
+    listview1.Items.Item[i-1].Checked:=true ; // select ALL
+end;
+
+procedure TForm1.SelectNone1Click(Sender: TObject);
+var i : longword;
+begin
+  for i:=1 to listview1.Items.Count do
+    listview1.Items.Item[i-1].Checked:=false ; //select NONE
+end;
+
+procedure TForm1.SelectInverse1Click(Sender: TObject);
+var i : longword;
+begin
+  for i:=1 to listview1.Items.Count do // select INVERSE
+    listview1.Items.Item[i-1].Checked:=not listview1.Items.Item[i-1].Checked;
+end;
+
+procedure TForm1.Chunks1Click(Sender: TObject);
+var i : longword;
+begin
+  for i:=1 to listview1.Items.Count do // select ONLY CHUNKS
+    listview1.Items.Item[i-1].Checked:=
+      ( strpos( pchar(listview1.Items.Item[i-1].caption), ('Chunk: ') )<>nil );
+end;
+
+procedure TForm1.extures1Click(Sender: TObject);
+var i : longword;
+begin
+  for i:=1 to listview1.Items.Count do // select ONLY TEXTURES
+    listview1.Items.Item[i-1].Checked:=
+      ( strpos( pchar(listview1.Items.Item[i-1].caption), ('Texture: ') )<>nil );
+end;
+
+procedure TForm1.Chunks2Click(Sender: TObject);
+var i : longword;
+begin
+  for i:=1 to listview1.Items.Count do // select INC CHUNKS
+    if strpos( pchar(listview1.Items.Item[i-1].caption), ('Chunk: ') )<>nil then
+         listview1.Items.Item[i-1].Checked:=true;
+end;
+
+procedure TForm1.extures2Click(Sender: TObject);
+var i : longword;
+begin
+  for i:=1 to listview1.Items.Count do // select INC TEXTURES
+    if strpos( pchar(listview1.Items.Item[i-1].caption), ('Texture: ') )<>nil then
+         listview1.Items.Item[i-1].Checked:=true;
 end;
 
 end.
